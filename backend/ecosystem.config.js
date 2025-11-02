@@ -1,0 +1,42 @@
+module.exports = {
+  apps: [
+    {
+      name: 'streamsync-api',
+      script: 'dist/main.js',
+      instances: 1,
+      exec_mode: 'cluster',
+      env: {
+        NODE_ENV: 'production',
+      },
+      error_file: '/var/log/streamsync/api-error.log',
+      out_file: '/var/log/streamsync/api-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: '10s',
+      max_memory_restart: '500M',
+      kill_timeout: 5000,
+      listen_timeout: 10000,
+      wait_ready: true,
+    },
+    {
+      name: 'streamsync-worker',
+      script: 'dist/worker.js',
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
+        NODE_ENV: 'production',
+      },
+      error_file: '/var/log/streamsync/worker-error.log',
+      out_file: '/var/log/streamsync/worker-out.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      min_uptime: '10s',
+      max_memory_restart: '300M',
+      kill_timeout: 5000,
+    },
+  ],
+};
