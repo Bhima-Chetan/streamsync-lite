@@ -50,19 +50,22 @@ export class YoutubeService {
           }),
         );
 
-        return videosResponse.data.items.map((item: YouTubeVideo) => ({
-          videoId: item.id,
-          title: item.snippet.title,
-          description: item.snippet.description,
-          thumbnailUrl: item.snippet.thumbnails.high.url,
-          channelId: item.snippet.channelId,
-          channelTitle: item.snippet.channelTitle,
-          publishedAt: new Date(item.snippet.publishedAt),
-          durationSeconds: this.parseDuration(item.contentDetails.duration),
-          viewCount: parseInt(item.statistics.viewCount || '0', 10),
-          likeCount: parseInt(item.statistics.likeCount || '0', 10),
-          commentCount: parseInt(item.statistics.commentCount || '0', 10),
-        }));
+        return videosResponse.data.items.map((item: YouTubeVideo) => {
+          const thumbnails = item.snippet.thumbnails as any;
+          return {
+            videoId: item.id,
+            title: item.snippet.title,
+            description: item.snippet.description,
+            thumbnailUrl: thumbnails?.high?.url || thumbnails?.medium?.url || thumbnails?.default?.url || '',
+            channelId: item.snippet.channelId,
+            channelTitle: item.snippet.channelTitle,
+            publishedAt: new Date(item.snippet.publishedAt),
+            durationSeconds: this.parseDuration(item.contentDetails.duration),
+            viewCount: parseInt(item.statistics?.viewCount || '0', 10),
+            likeCount: parseInt(item.statistics?.likeCount || '0', 10),
+            commentCount: parseInt(item.statistics?.commentCount || '0', 10),
+          };
+        });
       }
 
       // Determine order parameter based on category
@@ -133,19 +136,23 @@ export class YoutubeService {
         }),
       );
 
-      const videos = videosResponse.data.items.map((item: YouTubeVideo) => ({
-        videoId: item.id,
-        title: item.snippet.title,
-        description: item.snippet.description,
-        thumbnailUrl: item.snippet.thumbnails.high.url,
-        channelId: item.snippet.channelId,
-        channelTitle: item.snippet.channelTitle,
-        publishedAt: new Date(item.snippet.publishedAt),
-        durationSeconds: this.parseDuration(item.contentDetails.duration),
-        viewCount: parseInt(item.statistics.viewCount || '0', 10),
-        likeCount: parseInt(item.statistics.likeCount || '0', 10),
-        commentCount: parseInt(item.statistics.commentCount || '0', 10),
-      }));
+      const videos = videosResponse.data.items.map((item: YouTubeVideo) => {
+        const thumbnails = item.snippet.thumbnails as any;
+        const statistics = item.statistics as any;
+        return {
+          videoId: item.id,
+          title: item.snippet.title,
+          description: item.snippet.description,
+          thumbnailUrl: thumbnails?.high?.url || thumbnails?.medium?.url || thumbnails?.default?.url || '',
+          channelId: item.snippet.channelId,
+          channelTitle: item.snippet.channelTitle,
+          publishedAt: new Date(item.snippet.publishedAt),
+          durationSeconds: this.parseDuration(item.contentDetails.duration),
+          viewCount: parseInt(statistics?.viewCount || '0', 10),
+          likeCount: parseInt(statistics?.likeCount || '0', 10),
+          commentCount: parseInt(statistics?.commentCount || '0', 10),
+        };
+      });
 
       console.log(`✅ Returning ${videos.length} videos for category: ${category || 'all'}, order: ${order}`);
       console.log(`📹 First 3 video titles: ${videos.slice(0, 3).map(v => v.title).join(' | ')}`);
