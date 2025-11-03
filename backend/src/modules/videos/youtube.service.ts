@@ -52,6 +52,8 @@ export class YoutubeService {
 
         return videosResponse.data.items.map((item: YouTubeVideo) => {
           const thumbnails = item.snippet.thumbnails as any;
+          const statistics = item.statistics as any;
+          const contentDetails = item.contentDetails as any;
           return {
             videoId: item.id,
             title: item.snippet.title,
@@ -60,10 +62,10 @@ export class YoutubeService {
             channelId: item.snippet.channelId,
             channelTitle: item.snippet.channelTitle,
             publishedAt: new Date(item.snippet.publishedAt),
-            durationSeconds: this.parseDuration(item.contentDetails.duration),
-            viewCount: parseInt(item.statistics?.viewCount || '0', 10),
-            likeCount: parseInt(item.statistics?.likeCount || '0', 10),
-            commentCount: parseInt(item.statistics?.commentCount || '0', 10),
+            durationSeconds: this.parseDuration(contentDetails?.duration),
+            viewCount: parseInt(statistics?.viewCount || '0', 10),
+            likeCount: parseInt(statistics?.likeCount || '0', 10),
+            commentCount: parseInt(statistics?.commentCount || '0', 10),
           };
         });
       }
@@ -139,6 +141,7 @@ export class YoutubeService {
       const videos = videosResponse.data.items.map((item: YouTubeVideo) => {
         const thumbnails = item.snippet.thumbnails as any;
         const statistics = item.statistics as any;
+        const contentDetails = item.contentDetails as any;
         return {
           videoId: item.id,
           title: item.snippet.title,
@@ -147,7 +150,7 @@ export class YoutubeService {
           channelId: item.snippet.channelId,
           channelTitle: item.snippet.channelTitle,
           publishedAt: new Date(item.snippet.publishedAt),
-          durationSeconds: this.parseDuration(item.contentDetails.duration),
+          durationSeconds: this.parseDuration(contentDetails?.duration),
           viewCount: parseInt(statistics?.viewCount || '0', 10),
           likeCount: parseInt(statistics?.likeCount || '0', 10),
           commentCount: parseInt(statistics?.commentCount || '0', 10),
@@ -219,7 +222,8 @@ export class YoutubeService {
     }
   }
 
-  private parseDuration(duration: string): number {
+  private parseDuration(duration: string | undefined): number {
+    if (!duration) return 0;
     const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
     if (!match) return 0;
     const hours = parseInt(match[1] || '0', 10);
