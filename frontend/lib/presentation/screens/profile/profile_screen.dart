@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../blocs/auth/auth_bloc.dart';
@@ -199,6 +200,16 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Send a test notification to this device',
                 onTap: () {
                   _showTestPushDialog(context);
+                },
+              ),
+
+              _buildSettingTile(
+                context,
+                icon: Icons.developer_mode,
+                title: 'Show FCM Token',
+                subtitle: 'View your Firebase Cloud Messaging token',
+                onTap: () {
+                  _showFcmTokenDialog(context);
                 },
               ),
 
@@ -642,12 +653,100 @@ class ProfileScreen extends StatelessWidget {
                   .pushNamedAndRemoveUntil('/login', (route) => false);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+              backgroundColor: Colors.red),
             child: const Text('Logout'),
           ),
         ],
       ),
     );
   }
+
+  void _showFcmTokenDialog(BuildContext context) async {
+    // Get FCM token
+    final fcmToken = await getIt<SharedPreferences>().getString('fcm_token');
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.developer_mode, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('FCM Token'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Firebase Cloud Messaging Token:',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[400]!),
+                ),
+                child: SelectableText(
+                  fcmToken ?? 'No FCM token found',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Use this token to send test notifications from the backend.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+          if (fcmToken != null)
+            ElevatedButton.icon(
+              onPressed: () async {
+                // Copy to clipboard
+                await Clipboard.setData(ClipboardData(text: fcmToken));
+                Navigator.pop(dialogContext);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.white),
+                          SizedBox(width: 16),
+                          Text('FCM token copied to clipboard!'),
+                        ],
+                      ),
+                      backgroundColor: Colors.green,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.copy),
+              label: const Text('Copy'),
+            ),
+        ],
+      ),
+    );
+  }
 }
+

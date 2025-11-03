@@ -66,4 +66,11 @@ export class UsersService {
   async getUserTokens(userId: string) {
     return this.fcmTokenRepository.find({ where: { userId } });
   }
+
+  async getAllFcmTokens() {
+    return this.fcmTokenRepository.find({
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 }
