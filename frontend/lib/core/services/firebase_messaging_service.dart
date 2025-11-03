@@ -219,28 +219,34 @@ class FirebaseMessagingService {
   // Register FCM token with backend after login
   static Future<void> registerTokenWithBackend(String userId) async {
     try {
+      developer.log('🔔 STEP 1: Starting FCM token registration for user: $userId');
+      
       // Get the current FCM token
+      developer.log('🔔 STEP 2: Requesting FCM token from Firebase...');
       final token = await getToken();
 
       if (token == null) {
-        developer.log('Failed to get FCM token', error: 'Token is null');
+        developer.log('❌ STEP 3: Failed to get FCM token - Token is null!', error: 'Token is null');
         return;
       }
 
-      developer.log('Registering FCM token with backend for user: $userId');
+      developer.log('✅ STEP 3: Got FCM token: ${token.substring(0, 20)}... (truncated)');
+      developer.log('🔔 STEP 4: Preparing to send token to backend API');
 
       // Import ApiClient using dependency injection
       final apiClient = _getApiClient();
 
+      developer.log('🔔 STEP 5: Calling API endpoint /users/$userId/fcmToken');
+      
       // Register token with backend
       await apiClient.registerFcmToken(userId, {
         'token': token,
         'platform': 'android', // TODO: Detect platform (android/ios)
       });
 
-      developer.log('Successfully registered FCM token with backend');
-    } catch (e) {
-      developer.log('Error registering FCM token with backend: $e', error: e);
+      developer.log('✅ STEP 6: Successfully registered FCM token with backend!');
+    } catch (e, stackTrace) {
+      developer.log('❌ Error registering FCM token with backend: $e', error: e, stackTrace: stackTrace);
     }
   }
 
