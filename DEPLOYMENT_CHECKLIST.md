@@ -1,20 +1,64 @@
 # 🚀 AWS Free Tier Deployment Checklist
 
+## ✅ Completed Tasks
+
+### AWS Account Setup
+- [x] Create AWS account
+- [x] Create IAM user with admin access
+- [x] Install and configure AWS CLI
+- [x] Create SSH key pair for EC2 access (streamsync.pem)
+
+### Local Preparation
+- [x] Test application locally (backend + frontend)
+- [x] Commit and push all code to Git repository (GitHub: Bhima-Chetan/streamsync-lite)
+- [x] All features working (YouTube API, Firebase Push, Auth)
+
+### Infrastructure Deployed
+- [x] **EC2 Instance:** t2.micro (i-0e8bd698092989e01, IP: 3.85.120.15)
+- [x] **NGINX:** Reverse proxy configured (port 80 → 3000)
+- [x] **PM2:** Process manager with auto-restart and auto-start on boot
+- [x] **CloudWatch:** Logging and metrics active
+  - Log Groups: `/aws/ec2/streamsync/app` and `/aws/ec2/streamsync/nginx`
+  - Metrics: CPU, Memory, Disk (namespace: StreamSync)
+- [x] **IAM Role:** StreamSyncEC2CloudWatchRole with CloudWatch permissions
+- [x] **Security Groups:** Configured for HTTP, SSH, and PostgreSQL
+
+### Application Status
+- [x] Backend deployed and running (NestJS + TypeScript)
+- [x] Health endpoint working: http://3.85.120.15/health
+- [x] API documentation: http://3.85.120.15/api/docs
+- [x] YouTube API integration ✅
+- [x] Firebase Push Notifications ✅
+- [x] User authentication (JWT) ✅
+- [x] Database: Local PostgreSQL (migrating to RDS next)
+
+---
+
+## 🔄 In Progress
+
+### AWS Systems Manager Parameter Store
+- [x] Created parameter-store.config.ts
+- [x] Updated main.ts to load from SSM
+- [x] Added @aws-sdk/client-ssm to package.json
+- [ ] Add SSM permissions to IAM role
+- [ ] Store secrets in Parameter Store
+- [ ] Deploy changes to EC2
+- [ ] Test parameter loading
+
+### Documentation
+- [x] DEPLOYMENT_SETUP.md - CloudWatch and PM2 guide
+- [x] RDS_MIGRATION_GUIDE.md - Complete RDS migration steps
+- [x] This checklist
+
+---
+
+## 📋 Next Steps (Priority Order)
+
 ## Pre-Deployment
 
 ### AWS Account Setup
-- [ ] Create AWS account
-- [ ] Enable MFA on root account
-- [ ] Create IAM user with admin access
-- [ ] Generate access key and secret key
-- [ ] Install and configure AWS CLI: `aws configure`
-- [ ] Create SSH key pair for EC2 access
-
-### Local Preparation
-- [ ] Test application locally (backend + worker + frontend)
-- [ ] Ensure all environment variables documented in `.env.example`
-- [ ] Commit and push all code to Git repository
-- [ ] Tag release version: `git tag v1.0.0`
+- [ ] Enable MFA on root account (security best practice)
+- [ ] Set up billing alerts ($1 threshold)
 
 ---
 
