@@ -7,11 +7,17 @@ export const initializeFirebase = () => {
     // Parse private key - handle both escaped and literal newlines
     let privateKey = process.env.FIREBASE_PRIVATE_KEY || '';
     
+    // Remove surrounding quotes if present
+    privateKey = privateKey.replace(/^["']|["']$/g, '');
+    
     // Remove any trailing backslashes or whitespace
     privateKey = privateKey.trim().replace(/\\+$/, '');
     
     // Replace escaped newlines with actual newlines
     privateKey = privateKey.replace(/\\n/g, '\n');
+    
+    // Trim again after newline replacement to remove leading/trailing whitespace
+    privateKey = privateKey.trim();
     
     console.log('🔑 Firebase private key length:', privateKey.length);
     console.log('🔑 Private key starts with:', privateKey.substring(0, 30));
