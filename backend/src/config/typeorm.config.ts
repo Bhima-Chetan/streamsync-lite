@@ -15,6 +15,10 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
   synchronize: process.env.NODE_ENV === 'development',
   logging: process.env.NODE_ENV === 'development',
+  // Enable SSL for RDS connections (required by AWS RDS)
+  ssl: process.env.DATABASE_HOST?.includes('rds.amazonaws.com') 
+    ? { rejectUnauthorized: false } 
+    : false,
 };
 
 export const dataSourceOptions: DataSourceOptions = typeOrmConfig as DataSourceOptions;
