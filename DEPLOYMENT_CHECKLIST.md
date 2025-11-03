@@ -15,6 +15,10 @@
 
 ### Infrastructure Deployed
 - [x] **EC2 Instance:** t2.micro (i-0e8bd698092989e01, IP: 3.85.120.15)
+- [x] **RDS Instance:** db.t4g.micro PostgreSQL (streamsync-db.ckng6848ej05.us-east-1.rds.amazonaws.com)
+  - Database migrated on November 3, 2025
+  - SSL/TLS enabled
+  - Security group configured (sg-04bd0c91266a947a4)
 - [x] **NGINX:** Reverse proxy configured (port 80 → 3000)
 - [x] **PM2:** Process manager with auto-restart and auto-start on boot
 - [x] **CloudWatch:** Logging and metrics active
@@ -30,24 +34,30 @@
 - [x] YouTube API integration ✅
 - [x] Firebase Push Notifications ✅
 - [x] User authentication (JWT) ✅
-- [x] Database: Local PostgreSQL (migrating to RDS next)
+- [x] **Database: AWS RDS PostgreSQL** ✅ (Migration complete - November 3, 2025)
+  - Instance: db.t4g.micro (streamsync-db)
+  - SSL/TLS encryption enabled
+  - Data migrated: 1 user, 294 videos, 1 FCM token
+  - See RDS_MIGRATION_COMPLETE.md for details
 
 ---
 
 ## 🔄 In Progress
 
-### AWS Systems Manager Parameter Store
+### AWS Systems Manager Parameter Store (Next Priority)
 - [x] Created parameter-store.config.ts
 - [x] Updated main.ts to load from SSM
 - [x] Added @aws-sdk/client-ssm to package.json
-- [ ] Add SSM permissions to IAM role
+- [x] Deployed to EC2 (using .env fallback)
+- [ ] **NEXT:** Add SSM permissions to IAM role (AmazonSSMReadOnlyAccess)
 - [ ] Store secrets in Parameter Store
-- [ ] Deploy changes to EC2
-- [ ] Test parameter loading
+- [ ] Enable NODE_ENV=production or USE_SSM=true
+- [ ] Test parameter loading and verify logs
 
 ### Documentation
 - [x] DEPLOYMENT_SETUP.md - CloudWatch and PM2 guide
 - [x] RDS_MIGRATION_GUIDE.md - Complete RDS migration steps
+- [x] RDS_MIGRATION_COMPLETE.md - Migration completion summary (November 3, 2025)
 - [x] This checklist
 
 ---
