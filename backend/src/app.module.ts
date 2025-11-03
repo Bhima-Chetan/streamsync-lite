@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module';
 import { VideosModule } from './modules/videos/videos.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { HealthController } from './health.controller';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -36,6 +37,6 @@ import { HealthController } from './health.controller';
     VideosModule,
     NotificationsModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, AppController],
 })
 export class AppModule {}
