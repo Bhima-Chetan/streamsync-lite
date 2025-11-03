@@ -133,11 +133,34 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final result = await _authRepository.register(
           event.email, event.name, event.password);
+      
+      final userId = result['user']['id'];
+      
       emit(AuthAuthenticated(
-        result['user']['id'],
+        userId,
         result['user']['email'],
         result['user']['name'],
       ));
+      print('✅ AuthBloc: AuthAuthenticated state emitted!');
+
+      // Register FCM token with backend after successful registration
+      try {
+        print('🔔 AuthBloc: Registering FCM token with backend...');
+        await FirebaseMessagingService.registerTokenWithBackend(userId);
+        print('✅ AuthBloc: FCM token registered successfully');
+      } catch (e) {
+        print('⚠️ AuthBloc: Failed to register FCM token: $e');
+        // Don't fail the registration if FCM registration fails
+      }
+
+      // Start connectivity monitoring for sync
+      try {
+        final connectivityService = getIt<ConnectivityService>();
+        connectivityService.startMonitoring(userId);
+        print('✅ AuthBloc: Connectivity monitoring started');
+      } catch (e) {
+        print('⚠️ AuthBloc: Failed to start connectivity monitoring: $e');
+      }
     } catch (e) {
       emit(AuthError(e.toString()));
       emit(AuthUnauthenticated());
