@@ -20,9 +20,9 @@ async function bootstrap() {
   // Initialize Firebase Admin SDK
   try {
     initializeFirebase();
-    console.log('✅ Firebase Admin SDK initialized successfully');
+    console.log(' Firebase Admin SDK initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase Admin SDK:', error);
+    console.error(' Failed to initialize Firebase Admin SDK:', error);
   }
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
