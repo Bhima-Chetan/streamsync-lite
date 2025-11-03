@@ -9,40 +9,48 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final List<NotificationItem> _notifications = [
-    NotificationItem(
-      id: '1',
-      title: 'New video uploaded',
-      body: 'Channel Name uploaded: "Amazing Tutorial"',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      isRead: false,
-      type: NotificationType.newVideo,
-    ),
-    NotificationItem(
-      id: '2',
-      title: 'Comment on your video',
-      body: 'User123 commented: "Great content!"',
-      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
-      isRead: false,
-      type: NotificationType.comment,
-    ),
-    NotificationItem(
-      id: '3',
-      title: 'New subscriber',
-      body: 'You have 10 new subscribers!',
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      isRead: true,
-      type: NotificationType.subscriber,
-    ),
-    NotificationItem(
-      id: '4',
-      title: 'Recommended for you',
-      body: 'Check out trending videos in Technology',
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-      isRead: true,
-      type: NotificationType.recommendation,
-    ),
-  ];
+  List<NotificationItem> _notifications = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize notifications only once
+    _notifications = [
+      NotificationItem(
+        id: '1',
+        title: 'New video uploaded',
+        body: 'Channel Name uploaded: "Amazing Tutorial"',
+        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+        isRead: false,
+        type: NotificationType.newVideo,
+      ),
+      NotificationItem(
+        id: '2',
+        title: 'Comment on your video',
+        body: 'User123 commented: "Great content!"',
+        timestamp: DateTime.now().subtract(const Duration(hours: 5)),
+        isRead: false,
+        type: NotificationType.comment,
+      ),
+      NotificationItem(
+        id: '3',
+        title: 'New subscriber',
+        body: 'You have 10 new subscribers!',
+        timestamp: DateTime.now().subtract(const Duration(days: 1)),
+        isRead: true,
+        type: NotificationType.subscriber,
+      ),
+      NotificationItem(
+        id: '4',
+        title: 'Recommended for you',
+        body: 'Check out trending videos in Technology',
+        timestamp: DateTime.now().subtract(const Duration(days: 2)),
+        isRead: true,
+        type: NotificationType.recommendation,
+      ),
+    ];
+  }
+
 
   void _deleteNotification(String id) {
     setState(() {

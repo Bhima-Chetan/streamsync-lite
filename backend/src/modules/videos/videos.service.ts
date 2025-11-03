@@ -24,16 +24,17 @@ export class VideosService {
       throw new Error('YouTube channel ID not configured');
     }
 
+    console.log(`📺 VideosService: Fetching videos for category: ${category || 'all'}`);
     const videos = await this.youtubeService.getLatestVideos(targetChannelId, maxResults, category);
+    console.log(`✅ VideosService: Received ${videos.length} videos from YouTube for category: ${category || 'all'}`);
 
+    // Save to database for offline access, but don't re-query
     for (const videoData of videos) {
       await this.videoRepository.upsert(videoData, ['videoId']);
     }
 
-    return this.videoRepository.find({
-      where: { videoId: In(videos.map((v) => v.videoId)) },
-      order: { publishedAt: 'DESC' },
-    });
+    // Return the YouTube results directly to preserve the correct order
+    return videos;
   }
 
   async searchVideos(query: string, maxResults: number = 20) {
@@ -101,5 +102,9 @@ export class VideosService {
       where: { userId },
       relations: ['video'],
     });
+  }
+
+  async getVideoComments(videoId: string, maxResults: number = 20) {
+    return this.youtubeService.getVideoComments(videoId, maxResults);
   }
 }

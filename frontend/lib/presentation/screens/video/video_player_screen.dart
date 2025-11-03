@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/favorites/favorites_bloc.dart';
 import '../../../data/repositories/video_repository.dart';
 import '../../../data/local/database.dart';
+import '../../../data/remote/api_client.dart';
 import '../../../core/di/injection.dart';
 import 'dart:async';
 
@@ -13,12 +15,22 @@ class VideoPlayerScreen extends StatefulWidget {
   final String videoId;
   final String? title;
   final String? description;
+  final String? channelTitle;
+  final BigInt? viewCount;
+  final BigInt? likeCount;
+  final BigInt? commentCount;
+  final DateTime? publishedAt;
 
   const VideoPlayerScreen({
     super.key,
     required this.videoId,
     this.title,
     this.description,
+    this.channelTitle,
+    this.viewCount,
+    this.likeCount,
+    this.commentCount,
+    this.publishedAt,
   });
 
   @override
@@ -35,6 +47,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isInitializing = true;
   Timer? _progressTimer;
   int _lastSavedPosition = 0;
+  List<Map<String, dynamic>> _comments = [];
+  bool _loadingComments = false;
 
   @override
   void initState() {
@@ -45,6 +59,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     
     // Load saved progress and resume
     _loadAndResumeProgress();
+    
+    // Load comments
+    _loadComments();
   }
   
   Future<void> _loadAndResumeProgress() async {
@@ -126,6 +143,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  Future<void> _loadComments() async {
+    setState(() => _loadingComments = true);
+    
+    try {
+      final apiClient = getIt<ApiClient>();
+      final response = await apiClient.getVideoComments(widget.videoId, 20);
+      
+      if (mounted) {
+        setState(() {
+          _comments = List<Map<String, dynamic>>.from(response as List);
+          _loadingComments = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading comments: $e');
+      if (mounted) {
+        setState(() => _loadingComments = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _progressTimer?.cancel();
@@ -195,10 +233,57 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _shareVideo() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Share feature coming soon'),
-        behavior: SnackBarBehavior.floating,
+    final String videoUrl = 'https://www.youtube.com/watch?v=${widget.videoId}';
+    final String shareText = '${widget.title ?? "Check out this video"}\n\n$videoUrl';
+    
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Share Video',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('Copy Link'),
+              onTap: () async {
+                // Copy to clipboard
+                await Clipboard.setData(ClipboardData(text: videoUrl));
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Link copied to clipboard'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.text_snippet),
+              title: const Text('Copy Title & Link'),
+              onTap: () async {
+                await Clipboard.setData(ClipboardData(text: shareText));
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Text copied to clipboard'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -266,7 +351,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '1.2M views • 2 days ago',
+                          '${_formatViewCount(widget.viewCount)} views${widget.publishedAt != null ? ' • ${_getTimeAgo(widget.publishedAt!)}' : ''}',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurface.withOpacity(0.6),
                           ),
@@ -285,7 +370,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           icon: _isLiked
                               ? Icons.thumb_up
                               : Icons.thumb_up_outlined,
-                          label: '12K',
+                          label: _formatCount(widget.likeCount),
                           onTap: _toggleLike,
                           isActive: _isLiked,
                         ),
@@ -336,13 +421,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Channel Name',
+                                widget.channelTitle ?? 'Channel Name',
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Text(
-                                '100K subscribers',
+                                _formatCount(widget.viewCount) + ' views',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.onSurface
                                       .withOpacity(0.6),
@@ -413,31 +498,144 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
                   const Divider(height: 32),
 
-                  // Comments Section - Coming Soon
+                  // Comments Section
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.comment_outlined,
-                            color: theme.colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Comments coming soon',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Comments',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '(${widget.commentCount != null ? _formatCount(widget.commentCount) : '0'})',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (_loadingComments)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_comments.isEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.comment_outlined,
+                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'No comments available',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          ..._comments.take(5).map((comment) {
+                            final publishedAt = DateTime.parse(comment['publishedAt']);
+                            final timeAgo = _getTimeAgo(publishedAt);
+                            
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundImage: NetworkImage(
+                                      comment['authorProfileImageUrl'] ?? '',
+                                    ),
+                                    onBackgroundImageError: (_, __) {},
+                                    child: comment['authorProfileImageUrl'] == null
+                                        ? const Icon(Icons.person, size: 16)
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              comment['authorName'] ?? 'Unknown',
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              timeAgo,
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          comment['text'] ?? '',
+                                          style: theme.textTheme.bodyMedium,
+                                          maxLines: 3,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (comment['likeCount'] != null && comment['likeCount'] > 0)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 4.0),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.thumb_up_outlined,
+                                                  size: 14,
+                                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  comment['likeCount'].toString(),
+                                                  style: theme.textTheme.bodySmall?.copyWith(
+                                                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        if (_comments.length > 5)
+                          TextButton(
+                            onPressed: () {
+                              // Show all comments in a bottom sheet
+                            },
+                            child: const Text('Show more comments'),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
                   ),
 
@@ -575,7 +773,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Channel Name',
+                      widget.channelTitle ?? 'Channel Name',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurface.withOpacity(0.6),
                       ),
@@ -619,5 +817,48 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
     );
+  }
+
+  String _formatCount(BigInt? count) {
+    if (count == null) return '0';
+    final value = count.toInt();
+    final formatter = NumberFormat.compact();
+    return formatter.format(value);
+  }
+
+  String _formatViewCount(BigInt? viewCount) {
+    if (viewCount == null) return '0';
+    
+    final count = viewCount.toInt();
+    if (count >= 1000000000) {
+      return '${(count / 1000000000).toStringAsFixed(1)}B';
+    } else if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    } else {
+      return count.toString();
+    }
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 365) {
+      final years = (difference.inDays / 365).floor();
+      return '$years ${years == 1 ? 'year' : 'years'} ago';
+    } else if (difference.inDays > 30) {
+      final months = (difference.inDays / 30).floor();
+      return '$months ${months == 1 ? 'month' : 'months'} ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} ${difference.inDays == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} ${difference.inHours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} ${difference.inMinutes == 1 ? 'minute' : 'minutes'} ago';
+    } else {
+      return 'Just now';
+    }
   }
 }

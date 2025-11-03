@@ -1,7 +1,7 @@
 class AppConfig {
   static const String appName = 'StreamSync Lite';
   static const String apiBaseUrl =
-      'http://192.168.1.8:3000'; // Physical device - PC IP
+      'http://3.85.120.15'; // AWS EC2 instance
   static const String apiVersion = 'v1';
 
   static const int cacheExpiryHours = 24;

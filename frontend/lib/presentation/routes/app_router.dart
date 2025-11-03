@@ -43,11 +43,28 @@ class AppRouter {
 
       case videoPlayer:
         final args = settings.arguments as Map<String, dynamic>?;
+        
+        // Helper function to safely parse BigInt from dynamic
+        BigInt? parseBigInt(dynamic value) {
+          if (value == null) return null;
+          if (value is BigInt) return value;
+          if (value is int) return BigInt.from(value);
+          if (value is String) return BigInt.tryParse(value);
+          return null;
+        }
+        
         return MaterialPageRoute(
           builder: (_) => VideoPlayerScreen(
             videoId: args?['videoId']?.toString() ?? 'dQw4w9WgXcQ',
             title: args?['title']?.toString(),
             description: args?['description']?.toString(),
+            channelTitle: args?['channelTitle']?.toString(),
+            viewCount: parseBigInt(args?['viewCount']),
+            likeCount: parseBigInt(args?['likeCount']),
+            commentCount: parseBigInt(args?['commentCount']),
+            publishedAt: args?['publishedAt'] != null 
+                ? DateTime.parse(args!['publishedAt'] as String)
+                : null,
           ),
         );
 

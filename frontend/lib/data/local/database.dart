@@ -173,6 +173,33 @@ class AppDatabase extends _$AppDatabase {
 
     return (select(videos)..where((v) => v.videoId.isIn(videoIds))).get();
   }
+
+  // Get all favorites for a user
+  Future<List<Favorite>> getAllFavorites(String userId) =>
+      (select(favorites)
+            ..where((f) => f.userId.equals(userId))
+            ..orderBy([(f) => OrderingTerm.desc(f.createdAt)]))
+          .get();
+
+  // Toggle favorite for a video
+  Future<bool> toggleFavorite(String userId, String videoId) async {
+    final existing = await (select(favorites)
+          ..where((f) => f.userId.equals(userId) & f.videoId.equals(videoId)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      await delete(favorites).delete(existing);
+      return false;
+    } else {
+      await into(favorites).insert(FavoritesCompanion.insert(
+        id: '$userId-$videoId',
+        userId: userId,
+        videoId: videoId,
+        synced: const Value(false),
+      ));
+      return true;
+    }
+  }
 }
 
 LazyDatabase _openConnection() {

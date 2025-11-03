@@ -41,6 +41,17 @@ export class VideosController {
     return this.videosService.getVideoById(videoId);
   }
 
+  @Get(':videoId/comments')
+  @ApiOperation({ summary: 'Get video comments from YouTube' })
+  @ApiQuery({ name: 'maxResults', required: false, description: 'Number of comments to fetch (default: 20, max: 100)' })
+  async getVideoComments(
+    @Param('videoId') videoId: string,
+    @Query('maxResults') maxResults?: string,
+  ) {
+    const limit = maxResults ? Math.min(parseInt(maxResults, 10), 100) : 20;
+    return this.videosService.getVideoComments(videoId, limit);
+  }
+
   @Post('progress')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

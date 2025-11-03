@@ -233,8 +233,7 @@ class FirebaseMessagingService {
       final apiClient = _getApiClient();
 
       // Register token with backend
-      await apiClient.registerFcmToken({
-        'userId': userId,
+      await apiClient.registerFcmToken(userId, {
         'token': token,
         'platform': 'android', // TODO: Detect platform (android/ios)
       });

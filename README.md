@@ -415,164 +415,152 @@ jobs:
       - run: cd frontend && flutter analyze
 ```
 
-## AWS Deployment
+## AWS Deployment (Updated for PM2 + NGINX)
 
-### Option 1: AWS Elastic Beanstalk (Recommended)
+### Prerequisites
+- AWS Account with Free Tier eligibility
+- AWS CLI configured
+- EC2 key pair (.pem file)
 
-#### Deploy Backend
+### Quick Deploy (5 Steps - 15 Minutes)
 
-1. **Install EB CLI**
+**See [QUICK_DEPLOY.md](./QUICK_DEPLOY.md) for detailed 5-step guide**
+
+#### Step 1: Store Secrets in AWS Parameter Store
 ```powershell
-pip install awsebcli
+.\setup-secrets.ps1 -Region "us-east-1"
 ```
 
-2. **Initialize EB**
+#### Step 2: Create AWS Resources
+- RDS PostgreSQL db.t3.micro (Free Tier)
+- EC2 t2.micro with Amazon Linux 2023 (Free Tier)
+- Security groups for EC2 ↔ RDS communication
+
+#### Step 3: Configure IAM Role
+- Attach `AmazonSSMReadOnlyAccess` to EC2
+- Attach `CloudWatchAgentServerPolicy` to EC2
+
+#### Step 4: Deploy Application
 ```powershell
-cd c:\STREAMSYNC\backend
-eb init -p node.js-18 streamsync-backend --region us-east-1
+.\deploy.ps1 -EC2IP "your-ec2-ip" -KeyFile "your-key.pem" -RDSEndpoint "your-rds-endpoint"
 ```
 
-3. **Create .ebextensions/options.config**
-```yaml
-option_settings:
-  aws:elasticbeanstalk:application:environment:
-    NODE_ENV: production
-    PORT: 8080
-  aws:elasticbeanstalk:container:nodejs:
-    NodeCommand: "npm start"
+#### Step 5: Update Flutter App
+```dart
+// frontend/lib/data/remote/api_client.dart
+static const String baseUrl = 'http://YOUR-EC2-IP';
 ```
 
-4. **Create environment and deploy**
-```powershell
-eb create streamsync-backend-env
-eb deploy
+### Architecture (AWS Free Tier)
+
+```
+┌─────────────────┐
+│  Flutter App    │
+│  (Android APK)  │
+└────────┬────────┘
+         │ HTTP
+         ▼
+┌─────────────────────────────────┐
+│  EC2 t2.micro (Free Tier)       │
+│  ┌───────────────────────────┐  │
+│  │  NGINX (Port 80)          │  │
+│  │  Reverse Proxy            │  │
+│  └──────────┬────────────────┘  │
+│             ▼                    │
+│  ┌───────────────────────────┐  │
+│  │  PM2 Process Manager      │  │
+│  │  ├─ streamsync-api        │  │
+│  │  └─ Auto-restart on crash │  │
+│  └──────────┬────────────────┘  │
+│             ▼                    │
+│  ┌───────────────────────────┐  │
+│  │  NestJS Backend (Node.js) │  │
+│  │  Port 3000                │  │
+│  └───────────────────────────┘  │
+└──────────┬──────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────┐
+│  RDS PostgreSQL db.t3.micro      │
+│  (Free Tier - 20GB Storage)      │
+└──────────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────┐
+│  AWS Systems Manager             │
+│  Parameter Store (Secrets)       │
+└──────────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────┐
+│  CloudWatch Logs                 │
+│  - Application Logs              │
+│  - NGINX Access/Error Logs       │
+└──────────────────────────────────┘
 ```
 
-5. **Set environment variables**
-```powershell
-eb setenv DATABASE_HOST=your-rds-endpoint `
-  DATABASE_PORT=5432 `
-  DATABASE_USER=postgres `
-  DATABASE_PASSWORD=yourpassword `
-  DATABASE_NAME=streamsync `
-  JWT_SECRET=yoursecret `
-  YOUTUBE_API_KEY=yourkey `
-  FIREBASE_PROJECT_ID=yourproject `
-  FIREBASE_PRIVATE_KEY="yourkey" `
-  FIREBASE_CLIENT_EMAIL=youremail
-```
+### Technologies Used (No Paid AWS Services)
 
-#### Setup RDS Database
+✅ **Free Tier AWS Services:**
+- EC2 t2.micro (750 hours/month - 12 months free)
+- RDS db.t3.micro (750 hours/month - 12 months free)
+- 20 GB RDS storage (free)
+- 30 GB EBS storage (free)
+- CloudWatch basic monitoring (free)
+- Systems Manager Parameter Store (free)
 
-1. **Create RDS Instance**
-```powershell
-aws rds create-db-instance `
-  --db-instance-identifier streamsync-db `
-  --db-instance-class db.t3.micro `
-  --engine postgres `
-  --master-username postgres `
-  --master-user-password YourPassword123 `
-  --allocated-storage 20 `
-  --publicly-accessible
-```
+✅ **Free External Services:**
+- YouTube Data API v3 (embed videos)
+- Firebase Cloud Messaging (push notifications)
 
-2. **Get RDS endpoint**
-```powershell
-aws rds describe-db-instances `
-  --db-instance-identifier streamsync-db `
-  --query 'DBInstances[0].Endpoint.Address'
-```
+❌ **NOT Using:**
+- S3/CloudFront (no file storage needed)
+- SNS (using Firebase FCM instead)
+- Lambda (using EC2 with PM2)
+- Any paid AWS features
 
-### Option 2: AWS EC2 Manual Deployment
+### Process Management (PM2)
 
-#### 1. Launch EC2 Instance
+**Benefits:**
+- Zero-downtime reloads
+- Auto-restart on crashes
+- CPU/Memory monitoring
+- Log management
+- Cluster mode support
 
-```powershell
-# Launch t3.small instance with Amazon Linux 2023
-aws ec2 run-instances `
-  --image-id ami-0c55b159cbfafe1f0 `
-  --instance-type t3.small `
-  --key-name your-key-pair `
-  --security-group-ids sg-xxxxxx `
-  --subnet-id subnet-xxxxxx
-```
-
-#### 2. SSH into EC2 and setup
-
+**Commands:**
 ```bash
-# Connect to EC2
-ssh -i your-key.pem ec2-user@your-ec2-public-ip
-
-# Install Node.js
-curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-sudo yum install -y nodejs git
-
-# Install PM2
-sudo npm install -g pm2
-
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/streamsync-lite.git
-cd streamsync-lite/backend
-
-# Install dependencies
-npm install
-
-# Create .env file
-nano .env
-# Paste your environment variables
-
-# Build
-npm run build
-
-# Start with PM2
-pm2 start dist/main.js --name streamsync-api
-pm2 start dist/worker.js --name streamsync-worker
-pm2 startup
-pm2 save
+pm2 status                  # Check status
+pm2 logs streamsync-api     # View logs
+pm2 restart streamsync-api  # Restart app
+pm2 reload streamsync-api   # Zero-downtime reload
+pm2 monit                   # Monitor CPU/Memory
 ```
 
-#### 3. Setup Nginx
+### Monitoring & Logging
 
+**CloudWatch Logs:**
+- `/aws/ec2/streamsync/application` - Application logs (stdout/stderr)
+- `/aws/ec2/streamsync/nginx` - NGINX access/error logs
+
+**Health Endpoint:**
 ```bash
-sudo yum install nginx -y
-sudo nano /etc/nginx/conf.d/streamsync.conf
+curl http://your-ec2-ip/health
 ```
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-```bash
-sudo systemctl start nginx
-sudo systemctl enable nginx
-```
-
-#### 4. Setup SSL (Optional)
-
-```bash
-sudo yum install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d your-domain.com
-```
+**Uptime Monitoring:**
+- Cron job checks `/health` every 5 minutes
+- Auto-restarts PM2 if health check fails
+- CloudWatch alarms (optional)
 
 ### Frontend APK Build
 
 ```powershell
 cd c:\STREAMSYNC\frontend
 
-# Update API base URL in lib/core/config/app_config.dart
-# Change to your AWS backend URL
+# Update API base URL in lib/data/remote/api_client.dart
+# Change line ~15 to your AWS backend URL:
+# static const String baseUrl = 'http://YOUR-EC2-IP';
 
 # Build release APK
 flutter build apk --release
@@ -580,6 +568,80 @@ flutter build apk --release
 # APK location: build/app/outputs/flutter-apk/app-release.apk
 ```
 
-## License
+## 📚 Documentation Files
 
-MIT License - Hackathon Project
+- **[README.md](./README.md)** - This file (project overview)
+- **[AWS_DEPLOYMENT.md](./AWS_DEPLOYMENT.md)** - Complete AWS deployment guide with all steps
+- **[QUICK_DEPLOY.md](./QUICK_DEPLOY.md)** - Quick 5-step deployment (15 minutes)
+- **[deploy.ps1](./deploy.ps1)** - Automated PowerShell deployment script
+- **[setup-secrets.ps1](./setup-secrets.ps1)** - AWS Parameter Store setup script
+
+## 🎯 Hackathon Requirements Checklist
+
+### Core Requirements
+- ✅ **Video Streaming** - YouTube integration with diverse content
+- ✅ **User Authentication** - JWT with refresh tokens
+- ✅ **Push Notifications** - Firebase Cloud Messaging
+- ✅ **Test Push Feature** - In Profile screen (hackathon requirement)
+- ✅ **Database** - PostgreSQL with TypeORM
+- ✅ **Mobile App** - Flutter with BLoC pattern
+
+### AWS Deployment Requirements
+- ✅ **Backend** - EC2 t2.micro with PM2 process manager
+- ✅ **Database** - RDS PostgreSQL db.t3.micro (Free Tier)
+- ✅ **Reverse Proxy** - NGINX on EC2
+- ✅ **Logging** - CloudWatch for application and NGINX logs
+- ✅ **Health Monitoring** - `/health` endpoint with cron uptime checks
+- ✅ **Secrets Management** - AWS Systems Manager Parameter Store (not in repo)
+- ✅ **No Paid Services** - Only Free Tier AWS + Free APIs
+- ✅ **YouTube Embed** - Using YouTube Data API v3 (free)
+- ✅ **Firebase Push** - Using FCM (free tier)
+
+### Security & Best Practices
+- ✅ **No Secrets in Repo** - All secrets in AWS Parameter Store
+- ✅ **JWT Authentication** - Secure token-based auth
+- ✅ **Password Hashing** - bcrypt for secure storage
+- ✅ **Rate Limiting** - 100 requests/minute per user
+- ✅ **Security Headers** - Helmet middleware
+- ✅ **NGINX Proxy** - Reverse proxy for better security
+- ✅ **Process Management** - PM2 with auto-restart
+- ✅ **IAM Roles** - Secure AWS resource access
+
+## 💰 Cost Breakdown
+
+### Free Tier (First 12 Months)
+- EC2 t2.micro: 750 hours/month = **$0**
+- RDS db.t3.micro: 750 hours/month = **$0**
+- 20 GB RDS storage = **$0**
+- 30 GB EBS storage = **$0**
+- CloudWatch basic monitoring = **$0**
+- Parameter Store (free tier) = **$0**
+- **Total: $0/month**
+
+### After Free Tier
+- EC2 t2.micro: ~$8-10/month
+- RDS db.t3.micro: ~$15-18/month
+- Data transfer: ~$1-2/month
+- **Total: ~$24-30/month**
+
+### For Hackathon Demo
+- Run for 2-3 days = **~$2-3**
+- Can stop instances when not demoing
+- Free Tier covers most usage
+
+## 🔥 Quick Start Summary
+
+```powershell
+# 1. Setup AWS secrets
+.\setup-secrets.ps1 -Region "us-east-1"
+
+# 2. Deploy to AWS EC2
+.\deploy.ps1 -EC2IP "your-ip" -KeyFile "your-key.pem" -RDSEndpoint "your-rds"
+
+# 3. Update Flutter app and build APK
+cd frontend
+# Edit lib/data/remote/api_client.dart (line 15)
+flutter build apk --release
+```
+
+**That's it! Your app is deployed on AWS Free Tier! 🚀**

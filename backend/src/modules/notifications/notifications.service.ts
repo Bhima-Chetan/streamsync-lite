@@ -85,19 +85,82 @@ export class NotificationsService {
   }
 
   async sendTestPush(userId: string, title: string, body: string) {
-    const tokens = await this.usersService.getUserTokens(userId);
+    console.log(`🔔 Test push requested for user: ${userId}, title: ${title}`);
+    
+    try {
+      const tokens = await this.usersService.getUserTokens(userId);
+      console.log(`📱 Found ${tokens.length} FCM token(s) for user`);
 
-    if (tokens.length === 0) {
-      throw new Error('No FCM tokens registered for this user');
+      if (tokens.length === 0) {
+        throw new Error('No FCM tokens registered for this user. Please make sure you are logged in on a device.');
+      }
+
+      // Create notification record
+      const notification = await this.createNotification(userId, title, body, { type: 'test' });
+      console.log(`📝 Notification created with ID: ${notification.id}`);
+
+      // Send immediately for test push (don't wait for worker)
+      const tokenStrings = tokens.map((t) => t.token);
+      
+      console.log(`🔥 Firebase App initialized: ${!!this.firebaseApp}`);
+      
+      const message = {
+        notification: {
+          title: title,
+          body: body,
+        },
+        data: {
+          notificationId: notification.id,
+          type: 'test',
+        },
+        tokens: tokenStrings,
+      };
+
+      console.log(`🚀 Sending FCM message to ${tokenStrings.length} device(s)...`);
+      console.log(`📦 Message payload:`, JSON.stringify(message, null, 2));
+      
+      const response = await admin.messaging(this.firebaseApp).sendEachForMulticast(message);
+      
+      console.log(`✅ FCM Response - Success: ${response.successCount}, Failures: ${response.failureCount}`);
+      
+      if (response.failureCount > 0) {
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            console.error(`❌ Failed to send to token ${idx}: ${resp.error?.message}`);
+            console.error(`❌ Error code: ${resp.error?.code}`);
+          }
+        });
+      }
+
+      // Mark notification as sent
+      notification.sent = true;
+      await this.notificationRepository.save(notification);
+
+      // Update the job status to completed
+      const jobs = await this.jobRepository.find({
+        where: { notification: { id: notification.id } },
+      });
+      
+      for (const job of jobs) {
+        job.status = JobStatus.COMPLETED;
+        job.messageId = response.responses[0]?.messageId || 'sent';
+        await this.jobRepository.save(job);
+      }
+
+      return {
+        success: true,
+        notificationId: notification.id,
+        successCount: response.successCount,
+        failureCount: response.failureCount,
+        message: `Test push sent successfully to ${response.successCount} device(s)`,
+      };
+    } catch (error: any) {
+      console.error(`❌ ERROR in sendTestPush:`, error);
+      console.error(`❌ Error stack:`, error.stack);
+      console.error(`❌ Error name:`, error.name);
+      console.error(`❌ Error message:`, error.message);
+      throw new Error(`Failed to send push notification: ${error.message}`);
     }
-
-    const notification = await this.createNotification(userId, title, body, { type: 'test' });
-
-    return {
-      success: true,
-      notificationId: notification.id,
-      message: `Test push queued for ${tokens.length} device(s)`,
-    };
   }
 
   async processPendingJobs(limit: number = 10) {

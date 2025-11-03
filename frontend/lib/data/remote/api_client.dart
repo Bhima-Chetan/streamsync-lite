@@ -33,6 +33,12 @@ abstract class ApiClient {
   @GET('/videos/{videoId}')
   Future<dynamic> getVideo(@Path() String videoId);
 
+  @GET('/videos/{videoId}/comments')
+  Future<dynamic> getVideoComments(
+    @Path() String videoId,
+    @Query('maxResults') int? maxResults,
+  );
+
   @POST('/videos/progress')
   Future<dynamic> saveProgress(@Body() Map<String, dynamic> body);
 
@@ -64,6 +70,9 @@ abstract class ApiClient {
     @Body() Map<String, dynamic> data,
   );
 
-  @POST('/fcm/token')
-  Future<dynamic> registerFcmToken(@Body() Map<String, dynamic> body);
+  @POST('/users/{userId}/fcmToken')
+  Future<dynamic> registerFcmToken(
+    @Path('userId') String userId,
+    @Body() Map<String, dynamic> body,
+  );
 }

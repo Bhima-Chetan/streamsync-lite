@@ -12,7 +12,7 @@ part of 'api_client.dart';
 
 class _ApiClient implements ApiClient {
   _ApiClient(this._dio, {this.baseUrl, this.errorLogger}) {
-    baseUrl ??= 'http://192.168.1.8:3000';
+    baseUrl ??= 'http://3.85.120.15';
   }
 
   final Dio _dio;
@@ -153,6 +153,28 @@ class _ApiClient implements ApiClient {
           .compose(
             _dio.options,
             '/videos/${videoId}',
+            queryParameters: queryParameters,
+            data: _data,
+          )
+          .copyWith(baseUrl: _combineBaseUrls(_dio.options.baseUrl, baseUrl)),
+    );
+    final _result = await _dio.fetch(_options);
+    final _value = _result.data;
+    return _value;
+  }
+
+  @override
+  Future<dynamic> getVideoComments(String videoId, int? maxResults) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{r'maxResults': maxResults};
+    queryParameters.removeWhere((k, v) => v == null);
+    final _headers = <String, dynamic>{};
+    const Map<String, dynamic>? _data = null;
+    final _options = _setStreamType<dynamic>(
+      Options(method: 'GET', headers: _headers, extra: _extra)
+          .compose(
+            _dio.options,
+            '/videos/${videoId}/comments',
             queryParameters: queryParameters,
             data: _data,
           )
@@ -328,7 +350,10 @@ class _ApiClient implements ApiClient {
   }
 
   @override
-  Future<dynamic> registerFcmToken(Map<String, dynamic> body) async {
+  Future<dynamic> registerFcmToken(
+    String userId,
+    Map<String, dynamic> body,
+  ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
     final _headers = <String, dynamic>{};
@@ -338,7 +363,7 @@ class _ApiClient implements ApiClient {
       Options(method: 'POST', headers: _headers, extra: _extra)
           .compose(
             _dio.options,
-            '/fcm/token',
+            '/users/${userId}/fcmToken',
             queryParameters: queryParameters,
             data: _data,
           )

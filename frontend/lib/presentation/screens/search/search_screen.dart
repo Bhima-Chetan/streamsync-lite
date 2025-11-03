@@ -197,6 +197,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   'videoId': video.videoId,
                   'title': video.title,
                   'description': video.description,
+                  'channelTitle': video.channelTitle,
+                  'viewCount': video.viewCount,
+                  'likeCount': video.likeCount,
+                  'commentCount': video.commentCount,
+                  'publishedAt': video.publishedAt.toIso8601String(),
                 },
               );
             },

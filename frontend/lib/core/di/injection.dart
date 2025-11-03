@@ -3,6 +3,7 @@ import '../../data/local/database.dart';
 import '../../data/remote/api_client.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/video_repository.dart';
+import '../../data/repositories/notification_repository.dart';
 import '../../data/services/sync_service.dart';
 import '../../data/services/connectivity_service.dart';
 import '../../presentation/blocs/auth/auth_bloc.dart';
@@ -22,7 +23,34 @@ Future<void> configureDependencies() async {
   final database = AppDatabase();
   getIt.registerSingleton<AppDatabase>(database);
 
-  final dio = Dio();
+  final dio = Dio(BaseOptions(
+    baseUrl: 'http://3.85.120.15', // AWS EC2 instance
+    connectTimeout: const Duration(seconds: 10), // Reduced from 30
+    receiveTimeout: const Duration(seconds: 15), // Reduced from 30
+    sendTimeout: const Duration(seconds: 10),
+  ));
+  
+  // Add interceptor to include auth token in requests
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) async {
+      // Get the access token from SharedPreferences
+      final token = sharedPreferences.getString('access_token');
+      if (token != null) {
+        options.headers['Authorization'] = 'Bearer $token';
+        print('🔑 Auth token added to request: ${options.path}');
+      } else {
+        print('⚠️ No auth token found for request: ${options.path}');
+      }
+      return handler.next(options);
+    },
+    onError: (error, handler) async {
+      print('❌ Dio Error: ${error.message}');
+      print('❌ Response: ${error.response?.data}');
+      print('❌ Status Code: ${error.response?.statusCode}');
+      return handler.next(error);
+    },
+  ));
+  
   getIt.registerSingleton<Dio>(dio);
 
   final apiClient = ApiClient(dio);
@@ -34,6 +62,10 @@ Future<void> configureDependencies() async {
 
   getIt.registerLazySingleton<VideoRepository>(
     () => VideoRepository(apiClient, database),
+  );
+
+  getIt.registerLazySingleton<NotificationRepository>(
+    () => NotificationRepository(apiClient, database),
   );
 
   getIt.registerLazySingleton<SyncService>(
